@@ -1,0 +1,23 @@
+tr_lexicon.tsv iki kaynaktan türetilmiştir:
+
+1) Türkçe kök listesi — tdd-ai/hunspell-tr
+   https://github.com/tdd-ai/hunspell-tr
+   Lisans: Mozilla Public License 2.0 (MPL-2.0)
+   Katkıda bulunanlar: Ali Safaya, Arda Göktoğan, Deniz Yuret, Emirhan Kurtuluş, Taner Sezer
+   Kullanım: sözcüklerin kök biçimleri ("bu gerçek bir Türkçe kelime mi" bilgisi).
+
+2) Türkçe sözcük sıklıkları — hermitdave/FrequencyWords (tr_50k, 2018)
+   https://github.com/hermitdave/FrequencyWords
+   Lisans: MIT
+   Kaynak derlem: OpenSubtitles
+   Kullanım: sözcük sıklıkları ("hangi aday daha yaygın" bilgisi).
+
+MPL-2.0 gereği: yukarıdaki kök listesinden türetilen bu dosyada yapılan değişiklikler
+aynı lisans altındadır. Uygulanan dönüşümler:
+  - Sözcükler Türkçe yerel ayarıyla küçük harfe çevrildi.
+  - Türkçe alfabe dışı karakter içeren ve 2 harften kısa kayıtlar çıkarıldı.
+  - Hunspell ek (affix) bayrakları atıldı; yalnızca kök biçimler alındı.
+  - Sıklık listesindeki, kök listesinde bulunmayan ve işaretli karşılığı en az 20 kat
+    yaygın olan ASCII biçimler ("cocuk", "degil" gibi klavye kaynaklı yazımlar) atıldı.
+
+Üretim betiği: scripts/build-lexicon.ps1
