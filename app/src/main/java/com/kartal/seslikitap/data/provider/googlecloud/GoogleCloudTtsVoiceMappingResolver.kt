@@ -6,6 +6,7 @@ import com.kartal.seslikitap.domain.provider.ProviderId
 import com.kartal.seslikitap.domain.provider.ProviderIds
 import com.kartal.seslikitap.domain.provider.ProviderVoice
 import com.kartal.seslikitap.domain.provider.VoiceMappingResolver
+import com.kartal.seslikitap.domain.repository.VoicePreferenceRepository
 import com.kartal.seslikitap.domain.security.ApiKeyStore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 class GoogleCloudTtsVoiceMappingResolver @Inject constructor(
     private val api: GoogleCloudTtsApi,
     private val apiKeyStore: ApiKeyStore,
+    private val voicePreferenceRepository: VoicePreferenceRepository,
 ) : VoiceMappingResolver {
 
     override val providerId: ProviderId = ProviderIds.GoogleCloudTts
@@ -51,6 +53,11 @@ class GoogleCloudTtsVoiceMappingResolver @Inject constructor(
     }
 
     override suspend fun resolveVoice(config: VoiceConfig): ProviderVoice? {
+        // Kullanıcının sabitlediği ses otomatik seçimin önüne geçer.
+        voicePreferenceRepository.getPinnedVoice(providerId)?.let { pinned ->
+            availableVoices().firstOrNull { it.id == pinned.voiceId }?.let { return it }
+        }
+
         val targetLanguage = config.languageTag ?: Locale.getDefault().toLanguageTag()
         val candidates = availableVoices()
             .filter { it.languageTag.equals(targetLanguage, ignoreCase = true) }

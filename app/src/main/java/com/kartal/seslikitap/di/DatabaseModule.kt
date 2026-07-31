@@ -8,6 +8,7 @@ import com.kartal.seslikitap.data.local.dao.BookDao
 import com.kartal.seslikitap.data.local.dao.PageDao
 import com.kartal.seslikitap.data.local.dao.ReadingProgressDao
 import com.kartal.seslikitap.data.local.dao.UserSettingsDao
+import com.kartal.seslikitap.data.local.dao.VoicePreferenceDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,4 +38,7 @@ object DatabaseModule {
 
     @Provides
     fun provideUserSettingsDao(db: KartalDatabase): UserSettingsDao = db.userSettingsDao()
+
+    @Provides
+    fun provideVoicePreferenceDao(db: KartalDatabase): VoicePreferenceDao = db.voicePreferenceDao()
 }

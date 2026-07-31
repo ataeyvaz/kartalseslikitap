@@ -7,9 +7,12 @@ import com.kartal.seslikitap.domain.model.NarratorGender
 import com.kartal.seslikitap.domain.model.UserSettings
 import com.kartal.seslikitap.domain.provider.OcrProviderRegistry
 import com.kartal.seslikitap.domain.provider.ProviderId
+import com.kartal.seslikitap.domain.provider.ProviderVoice
 import com.kartal.seslikitap.domain.provider.TtsProviderRegistry
 import com.kartal.seslikitap.domain.provider.VoiceMappingResolver
+import com.kartal.seslikitap.domain.repository.PinnedVoice
 import com.kartal.seslikitap.domain.repository.SettingsRepository
+import com.kartal.seslikitap.domain.repository.VoicePreferenceRepository
 import com.kartal.seslikitap.domain.security.ApiKeyStore
 import com.kartal.seslikitap.domain.security.CredentialField
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,8 +30,9 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val apiKeyStore: ApiKeyStore,
     private val voiceMappingResolvers: Set<@JvmSuppressWildcards VoiceMappingResolver>,
+    private val voicePreferenceRepository: VoicePreferenceRepository,
+    private val ttsRegistry: TtsProviderRegistry,
     ocrRegistry: OcrProviderRegistry,
-    ttsRegistry: TtsProviderRegistry,
     correctionRegistry: TextCorrectionRegistry,
 ) : ViewModel() {
 
@@ -47,14 +51,19 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.observeSettings(),
         apiKeyStore.observeStoredFields(),
+        voicePreferenceRepository.observeAll(),
         transientState,
-    ) { settings, storedFields, transient ->
+    ) { settings, storedFields, pinnedVoices, transient ->
         SettingsUiState(
             settings = settings,
             ocrProviders = ocrProviders,
             ttsProviders = ttsProviders,
             correctionProviders = correctionProviders,
             storedFields = storedFields,
+            pinnedVoices = pinnedVoices,
+            availableVoices = transient.availableVoices,
+            isLoadingVoices = transient.isLoadingVoices,
+            voiceIdDraft = transient.voiceIdDraft,
             drafts = transient.drafts,
             message = transient.message,
         )
@@ -123,6 +132,60 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeMessage() = transientState.update { it.copy(message = null) }
 
+    // --- Ses seçimi ---
+
+    /** Aktif TTS sağlayıcısının ses listesini çeker (ağ turu; kullanıcı isteyince). */
+    fun loadVoices() {
+        viewModelScope.launch {
+            transientState.update { it.copy(isLoadingVoices = true, message = null) }
+            try {
+                val provider = ttsRegistry.active()
+                val voices = provider.availableVoices()
+                transientState.update {
+                    it.copy(
+                        availableVoices = voices,
+                        message = if (voices.isEmpty()) {
+                            "Ses listesi boş döndü; anahtarı ve bağlantıyı kontrol et"
+                        } else {
+                            null
+                        },
+                    )
+                }
+            } catch (e: Exception) {
+                transientState.update { it.copy(message = e.message ?: "Sesler alınamadı") }
+            } finally {
+                transientState.update { it.copy(isLoadingVoices = false) }
+            }
+        }
+    }
+
+    fun onVoiceIdDraftChange(value: String) =
+        transientState.update { it.copy(voiceIdDraft = value) }
+
+    fun pinVoice(voiceId: String, displayName: String) {
+        viewModelScope.launch {
+            val provider = ttsRegistry.active()
+            voicePreferenceRepository.pinVoice(provider.id, voiceId, displayName)
+            transientState.update { it.copy(voiceIdDraft = "", message = "Ses sabitlendi") }
+        }
+    }
+
+    /** Elle girilen kimlikle sabitler: ses listesi yüklenemese de çalışır. */
+    fun pinVoiceFromDraft() {
+        val draft = transientState.value.voiceIdDraft.trim()
+        if (draft.isBlank()) return
+        val known = transientState.value.availableVoices.firstOrNull { it.id == draft }
+        pinVoice(draft, known?.displayName ?: draft)
+    }
+
+    fun clearPinnedVoice() {
+        viewModelScope.launch {
+            val provider = ttsRegistry.active()
+            voicePreferenceRepository.clearPinnedVoice(provider.id)
+            transientState.update { it.copy(message = "Sabitlenen ses kaldırıldı") }
+        }
+    }
+
     /** Anahtarı değişen sağlayıcının önbelleğe alınmış ses listesi geçersizdir. */
     private suspend fun invalidateVoiceCaches(providerId: ProviderId) {
         voiceMappingResolvers
@@ -136,6 +199,9 @@ class SettingsViewModel @Inject constructor(
 
     private data class TransientState(
         val drafts: Map<DraftKey, String> = emptyMap(),
+        val availableVoices: List<ProviderVoice> = emptyList(),
+        val isLoadingVoices: Boolean = false,
+        val voiceIdDraft: String = "",
         val message: String? = null,
     )
 }
@@ -148,9 +214,20 @@ data class SettingsUiState(
     val ttsProviders: List<ProviderRow> = emptyList(),
     val correctionProviders: List<ProviderRow> = emptyList(),
     val storedFields: Map<ProviderId, Set<String>> = emptyMap(),
+    val pinnedVoices: Map<ProviderId, PinnedVoice> = emptyMap(),
+    val availableVoices: List<ProviderVoice> = emptyList(),
+    val isLoadingVoices: Boolean = false,
+    val voiceIdDraft: String = "",
     val drafts: Map<DraftKey, String> = emptyMap(),
     val message: String? = null,
 ) {
+    /** Ayarlarda seçili TTS sağlayıcısı. */
+    val activeTtsProvider: ProviderRow?
+        get() = ttsProviders.firstOrNull { it.id == settings.defaultTtsProviderId }
+
+    val pinnedVoiceForActiveTts: PinnedVoice?
+        get() = activeTtsProvider?.let { pinnedVoices[it.id] }
+
     /** Kimlik bilgisi isteyen sağlayıcılar; ayarlar ekranı alanları bu listeden üretir. */
     val credentialProviders: List<ProviderRow>
         get() = (ocrProviders + ttsProviders + correctionProviders)

@@ -102,6 +102,70 @@ fun SettingsScreen(
                 )
             }
 
+            state.activeTtsProvider?.takeIf { !it.isOnDevice }?.let { provider ->
+                SettingsSection("Ses seçimi — ${provider.name}") {
+                    val pinned = state.pinnedVoiceForActiveTts
+                    Text(
+                        text = if (pinned == null) {
+                            "Ses otomatik seçiliyor: anlatıcı cinsiyeti ve doğallık skoruna göre."
+                        } else {
+                            "Sabit ses: ${pinned.displayName}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = viewModel::loadVoices,
+                            enabled = state.isConfigured(provider) && !state.isLoadingVoices,
+                        ) {
+                            Text(if (state.isLoadingVoices) "Yükleniyor…" else "Sesleri yükle")
+                        }
+                        if (pinned != null) {
+                            OutlinedButton(onClick = viewModel::clearPinnedVoice) {
+                                Text("Otomatiğe dön")
+                            }
+                        }
+                    }
+
+                    state.availableVoices.forEach { voice ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = pinned?.voiceId == voice.id,
+                                    onClick = { viewModel.pinVoice(voice.id, voice.displayName) },
+                                    role = Role.RadioButton,
+                                )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = pinned?.voiceId == voice.id, onClick = null)
+                            Column(modifier = Modifier.padding(start = 12.dp)) {
+                                Text(voice.displayName)
+                                Text(voice.id, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+
+                    // Liste yüklenemese de kullanıcı kimliği elle girebilmeli.
+                    OutlinedTextField(
+                        value = state.voiceIdDraft,
+                        onValueChange = viewModel::onVoiceIdDraftChange,
+                        label = { Text("Ses kimliği (elle)") },
+                        supportingText = { Text("Sağlayıcının ses sayfasındaki voiceId değeri.") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedButton(
+                        onClick = viewModel::pinVoiceFromDraft,
+                        enabled = state.voiceIdDraft.isNotBlank(),
+                    ) {
+                        Text("Bu kimliği sabitle")
+                    }
+                }
+            }
+
             SettingsSection("Metin düzeltme") {
                 state.correctionProviders.forEach { provider ->
                     ProviderOption(

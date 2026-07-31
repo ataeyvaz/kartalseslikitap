@@ -7,6 +7,7 @@ import com.kartal.seslikitap.domain.provider.ProviderIds
 import com.kartal.seslikitap.domain.provider.ProviderVoice
 import com.kartal.seslikitap.domain.provider.VoiceMappingResolver
 import com.kartal.seslikitap.domain.provider.VoiceScoring
+import com.kartal.seslikitap.domain.repository.VoicePreferenceRepository
 import com.kartal.seslikitap.domain.security.ApiKeyStore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -24,6 +25,7 @@ import javax.inject.Singleton
 class ElevenLabsVoiceMappingResolver @Inject constructor(
     private val api: ElevenLabsApi,
     private val apiKeyStore: ApiKeyStore,
+    private val voicePreferenceRepository: VoicePreferenceRepository,
 ) : VoiceMappingResolver {
 
     override val providerId: ProviderId = ProviderIds.ElevenLabs
@@ -51,8 +53,28 @@ class ElevenLabsVoiceMappingResolver @Inject constructor(
         }.also { cachedVoices = it }
     }
 
-    override suspend fun resolveVoice(config: VoiceConfig): ProviderVoice? =
-        VoiceScoring.select(availableVoices(), config)
+    override suspend fun resolveVoice(config: VoiceConfig): ProviderVoice? {
+        val voices = availableVoices()
+
+        // Kullanıcı bir ses sabitlediyse (ör. kendi klonladığı ses) o seçim her şeyin
+        // önüne geçer; kitabın anlatıcı cinsiyeti veya kalite skoru dikkate alınmaz.
+        voicePreferenceRepository.getPinnedVoice(providerId)?.let { pinned ->
+            voices.firstOrNull { it.id == pinned.voiceId }?.let { return it }
+            // Ses listesi alınamadıysa bile sabitlenen kimlikle devam et: hesapta var olduğu
+            // hâlde listelenemeyen bir ses yüzünden kullanıcının seçimini yok saymayalım.
+            if (voices.isEmpty()) {
+                return ProviderVoice(
+                    id = pinned.voiceId,
+                    displayName = pinned.displayName,
+                    gender = config.gender,
+                    languageTag = MULTILINGUAL,
+                    requiresNetwork = true,
+                )
+            }
+        }
+
+        return VoiceScoring.select(voices, config)
+    }
 
     override suspend fun invalidateCache() = cacheMutex.withLock { cachedVoices = null }
 

@@ -21,5 +21,20 @@ object Migrations {
         }
     }
 
-    val ALL = arrayOf(MIGRATION_1_2)
+    /** v3: sağlayıcı başına sabitlenmiş ses tercihi eklendi. */
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS voice_preferences (
+                    provider_id TEXT NOT NULL PRIMARY KEY,
+                    voice_id TEXT NOT NULL,
+                    display_name TEXT NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 }

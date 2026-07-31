@@ -80,7 +80,74 @@ class MigrationTest {
         migrated.close()
     }
 
+    /**
+     * v2'den v3'e geçiş: elle yazılan `CREATE TABLE`, Room'un beklediği şemayla birebir
+     * uyuşmazsa `runMigrationsAndValidate` burada patlar — kullanıcının cihazında
+     * açılışta çökmesindense burada.
+     */
+    @Test
+    fun migrate2To3_ses_tercihi_tablosunu_ekler() {
+        helper.createDatabase(TEST_DB_V2, 2).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO user_settings (id, default_ocr_provider_id, default_tts_provider_id,
+                    text_correction_provider_id, default_narrator_gender, playback_speed, pitch,
+                    auto_fallback_to_cloud, cloud_fallback_confidence_threshold, language_tag)
+                VALUES (0, 'ml_kit', 'elevenlabs', 'turkish_dictionary', 'NEUTRAL', 1.0, 1.0,
+                        0, 0.6, 'tr-TR')
+                """.trimIndent(),
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB_V2, 3, true, Migrations.MIGRATION_2_3)
+
+        // Mevcut ayar korunmalı.
+        migrated.query("SELECT default_tts_provider_id, text_correction_provider_id FROM user_settings")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("elevenlabs", cursor.getString(0))
+                assertEquals("turkish_dictionary", cursor.getString(1))
+            }
+
+        // Yeni tablo kullanılabilir olmalı.
+        migrated.execSQL(
+            "INSERT INTO voice_preferences (provider_id, voice_id, display_name) " +
+                "VALUES ('elevenlabs', 'klon-123', 'Kendi Sesim')",
+        )
+        migrated.query("SELECT voice_id, display_name FROM voice_preferences WHERE provider_id = 'elevenlabs'")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("klon-123", cursor.getString(0))
+                assertEquals("Kendi Sesim", cursor.getString(1))
+            }
+
+        migrated.close()
+    }
+
+    /** Eski bir kurulumdan (v1) doğrudan güncelleyen kullanıcı için zincirin tamamı. */
+    @Test
+    fun migrate1To3_zinciri_calisir() {
+        helper.createDatabase(TEST_DB_CHAIN, 1).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO books (id, title, cover_image_path, created_at, is_children_book, narrator_gender)
+                VALUES ('eski-kitap', 'Eski Kitap', NULL, 1700000000000, 0, 'MALE')
+                """.trimIndent(),
+            )
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB_CHAIN, 3, true, *Migrations.ALL)
+
+        migrated.query("SELECT title FROM books WHERE id = 'eski-kitap'").use { cursor ->
+            assertTrue("Kitap zincirli geçişte kaybolmuş", cursor.moveToFirst())
+            assertEquals("Eski Kitap", cursor.getString(0))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
+        const val TEST_DB_V2 = "migration-test-v2.db"
+        const val TEST_DB_CHAIN = "migration-test-chain.db"
     }
 }
