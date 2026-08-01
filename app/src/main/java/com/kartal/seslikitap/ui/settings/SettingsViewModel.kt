@@ -15,6 +15,7 @@ import com.kartal.seslikitap.domain.repository.SettingsRepository
 import com.kartal.seslikitap.domain.repository.VoicePreferenceRepository
 import com.kartal.seslikitap.domain.security.ApiKeyStore
 import com.kartal.seslikitap.domain.security.CredentialField
+import com.kartal.seslikitap.domain.usecase.TestTtsVoiceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +32,7 @@ class SettingsViewModel @Inject constructor(
     private val apiKeyStore: ApiKeyStore,
     private val voiceMappingResolvers: Set<@JvmSuppressWildcards VoiceMappingResolver>,
     private val voicePreferenceRepository: VoicePreferenceRepository,
+    private val testTtsVoice: TestTtsVoiceUseCase,
     private val ttsRegistry: TtsProviderRegistry,
     ocrRegistry: OcrProviderRegistry,
     correctionRegistry: TextCorrectionRegistry,
@@ -64,6 +66,8 @@ class SettingsViewModel @Inject constructor(
             availableVoices = transient.availableVoices,
             isLoadingVoices = transient.isLoadingVoices,
             voiceIdDraft = transient.voiceIdDraft,
+            isTestingVoice = transient.isTestingVoice,
+            testResult = transient.testResult,
             drafts = transient.drafts,
             message = transient.message,
         )
@@ -178,6 +182,25 @@ class SettingsViewModel @Inject constructor(
         pinVoice(draft, known?.displayName ?: draft)
     }
 
+    /** Kısa bir cümle okutup hangi sağlayıcı/sesin kullanıldığını gösterir. */
+    fun testVoice() {
+        viewModelScope.launch {
+            transientState.update { it.copy(isTestingVoice = true, testResult = null, message = null) }
+            try {
+                val result = testTtsVoice()
+                transientState.update {
+                    it.copy(testResult = "Çalıştı — okuyan: ${result.summary}")
+                }
+            } catch (e: Exception) {
+                transientState.update {
+                    it.copy(testResult = "Başarısız — ${e.message ?: "bilinmeyen hata"}")
+                }
+            } finally {
+                transientState.update { it.copy(isTestingVoice = false) }
+            }
+        }
+    }
+
     fun clearPinnedVoice() {
         viewModelScope.launch {
             val provider = ttsRegistry.active()
@@ -202,6 +225,8 @@ class SettingsViewModel @Inject constructor(
         val availableVoices: List<ProviderVoice> = emptyList(),
         val isLoadingVoices: Boolean = false,
         val voiceIdDraft: String = "",
+        val isTestingVoice: Boolean = false,
+        val testResult: String? = null,
         val message: String? = null,
     )
 }
@@ -218,6 +243,8 @@ data class SettingsUiState(
     val availableVoices: List<ProviderVoice> = emptyList(),
     val isLoadingVoices: Boolean = false,
     val voiceIdDraft: String = "",
+    val isTestingVoice: Boolean = false,
+    val testResult: String? = null,
     val drafts: Map<DraftKey, String> = emptyMap(),
     val message: String? = null,
 ) {

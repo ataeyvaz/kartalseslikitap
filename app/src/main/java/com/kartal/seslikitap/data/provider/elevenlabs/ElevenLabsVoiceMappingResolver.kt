@@ -1,5 +1,6 @@
 package com.kartal.seslikitap.data.provider.elevenlabs
 
+import com.kartal.seslikitap.data.remote.describeNetworkError
 import com.kartal.seslikitap.data.remote.elevenlabs.ElevenLabsApi
 import com.kartal.seslikitap.domain.model.VoiceConfig
 import com.kartal.seslikitap.domain.provider.ProviderId
@@ -7,7 +8,9 @@ import com.kartal.seslikitap.domain.provider.ProviderIds
 import com.kartal.seslikitap.domain.provider.ProviderVoice
 import com.kartal.seslikitap.domain.provider.VoiceMappingResolver
 import com.kartal.seslikitap.domain.provider.VoiceScoring
+import com.kartal.seslikitap.domain.repository.PinnedVoice
 import com.kartal.seslikitap.domain.repository.VoicePreferenceRepository
+import com.kartal.seslikitap.domain.provider.TtsProviderException
 import com.kartal.seslikitap.domain.security.ApiKeyStore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,8 +39,19 @@ class ElevenLabsVoiceMappingResolver @Inject constructor(
     suspend fun availableVoices(): List<ProviderVoice> = cacheMutex.withLock {
         cachedVoices?.let { return@withLock it }
 
-        val apiKey = apiKeyStore.getKey(providerId) ?: return@withLock emptyList()
-        val voices = runCatching { api.listVoices(apiKey) }.getOrNull()?.voices.orEmpty()
+        val apiKey = apiKeyStore.getKey(providerId)
+            ?: throw TtsProviderException(providerId, "ElevenLabs API anahtarı girilmemiş")
+
+        // Hata yutulmaz: anahtar yanlış mı, kota mı bitti, ağ mı yok — kullanıcı görmeli.
+        val voices = try {
+            api.listVoices(apiKey).voices
+        } catch (e: Exception) {
+            throw TtsProviderException(
+                providerId,
+                "ElevenLabs ses listesi alınamadı — ${e.describeNetworkError()}",
+                e,
+            )
+        }
 
         voices.map { voice ->
             ProviderVoice(
@@ -54,27 +68,32 @@ class ElevenLabsVoiceMappingResolver @Inject constructor(
     }
 
     override suspend fun resolveVoice(config: VoiceConfig): ProviderVoice? {
-        val voices = availableVoices()
-
         // Kullanıcı bir ses sabitlediyse (ör. kendi klonladığı ses) o seçim her şeyin
         // önüne geçer; kitabın anlatıcı cinsiyeti veya kalite skoru dikkate alınmaz.
-        voicePreferenceRepository.getPinnedVoice(providerId)?.let { pinned ->
+        val pinned = voicePreferenceRepository.getPinnedVoice(providerId)
+
+        val voices = try {
+            availableVoices()
+        } catch (e: Exception) {
+            // Sabitlenmiş ses varsa listeye ihtiyaç yok; okuma listeleme hatası yüzünden durmasın.
+            if (pinned != null) return pinned.asProviderVoice(config) else throw e
+        }
+
+        if (pinned != null) {
             voices.firstOrNull { it.id == pinned.voiceId }?.let { return it }
-            // Ses listesi alınamadıysa bile sabitlenen kimlikle devam et: hesapta var olduğu
-            // hâlde listelenemeyen bir ses yüzünden kullanıcının seçimini yok saymayalım.
-            if (voices.isEmpty()) {
-                return ProviderVoice(
-                    id = pinned.voiceId,
-                    displayName = pinned.displayName,
-                    gender = config.gender,
-                    languageTag = MULTILINGUAL,
-                    requiresNetwork = true,
-                )
-            }
+            if (voices.isEmpty()) return pinned.asProviderVoice(config)
         }
 
         return VoiceScoring.select(voices, config)
     }
+
+    private fun PinnedVoice.asProviderVoice(config: VoiceConfig) = ProviderVoice(
+        id = voiceId,
+        displayName = displayName,
+        gender = config.gender,
+        languageTag = MULTILINGUAL,
+        requiresNetwork = true,
+    )
 
     override suspend fun invalidateCache() = cacheMutex.withLock { cachedVoices = null }
 

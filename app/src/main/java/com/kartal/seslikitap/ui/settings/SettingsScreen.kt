@@ -100,6 +100,25 @@ fun SettingsScreen(
                         "daha doğaldır; cihaz sesi ücretsiz ve internetsiz çalışır.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+
+                // Anahtar girildikten sonra "gerçekten çalışıyor mu" sorusunun tek cevabı.
+                OutlinedButton(
+                    onClick = viewModel::testVoice,
+                    enabled = !state.isTestingVoice,
+                ) {
+                    Text(if (state.isTestingVoice) "Deneniyor…" else "Sesi dene")
+                }
+                state.testResult?.let { result ->
+                    Text(
+                        text = result,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (result.startsWith("Başarısız")) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
             }
 
             state.activeTtsProvider?.takeIf { !it.isOnDevice }?.let { provider ->

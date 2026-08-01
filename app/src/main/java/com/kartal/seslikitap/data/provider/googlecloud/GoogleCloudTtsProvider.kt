@@ -1,6 +1,7 @@
 package com.kartal.seslikitap.data.provider.googlecloud
 
 import android.util.Base64
+import com.kartal.seslikitap.data.remote.describeNetworkError
 import com.kartal.seslikitap.data.remote.googlecloud.GoogleCloudTtsApi
 import com.kartal.seslikitap.data.remote.googlecloud.TtsAudioConfig
 import com.kartal.seslikitap.data.remote.googlecloud.TtsInput
@@ -74,7 +75,11 @@ class GoogleCloudTtsProvider @Inject constructor(
             val response = try {
                 api.synthesize(apiKey, request)
             } catch (e: Exception) {
-                throw TtsProviderException(id, "Google Cloud TTS isteği başarısız: ${e.message}", e)
+                throw TtsProviderException(
+                    id,
+                    "Google Cloud TTS isteği başarısız — ${e.describeNetworkError()}",
+                    e,
+                )
             }
 
             if (response.audioContent.isBlank()) {

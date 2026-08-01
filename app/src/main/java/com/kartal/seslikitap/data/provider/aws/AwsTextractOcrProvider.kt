@@ -6,6 +6,7 @@ import com.kartal.seslikitap.data.remote.aws.AwsSigV4Signer
 import com.kartal.seslikitap.data.remote.aws.TextractApi
 import com.kartal.seslikitap.data.remote.aws.TextractDocument
 import com.kartal.seslikitap.data.remote.aws.TextractRequest
+import com.kartal.seslikitap.data.remote.describeNetworkError
 import com.kartal.seslikitap.di.IoDispatcher
 import com.kartal.seslikitap.domain.model.OcrResult
 import com.kartal.seslikitap.domain.provider.OcrProvider
@@ -90,7 +91,11 @@ class AwsTextractOcrProvider @Inject constructor(
                 request = request,
             )
         } catch (e: Exception) {
-            throw OcrProviderException(id, "AWS Textract isteği başarısız: ${e.message}", e)
+            throw OcrProviderException(
+                id,
+                "AWS Textract isteği başarısız — ${e.describeNetworkError()}",
+                e,
+            )
         }
 
         TextractMapper.toOcrResult(response, id, image.width, image.height)

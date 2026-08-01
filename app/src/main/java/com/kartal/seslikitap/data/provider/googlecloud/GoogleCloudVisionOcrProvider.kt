@@ -2,6 +2,7 @@ package com.kartal.seslikitap.data.provider.googlecloud
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.kartal.seslikitap.data.remote.describeNetworkError
 import com.kartal.seslikitap.data.remote.googlecloud.GoogleCloudVisionApi
 import com.kartal.seslikitap.data.remote.googlecloud.VisionAnnotateRequest
 import com.kartal.seslikitap.data.remote.googlecloud.VisionFeature
@@ -63,7 +64,11 @@ class GoogleCloudVisionOcrProvider @Inject constructor(
         val response = try {
             api.annotate(apiKey, request)
         } catch (e: Exception) {
-            throw OcrProviderException(id, "Google Cloud Vision isteği başarısız: ${e.message}", e)
+            throw OcrProviderException(
+                id,
+                "Google Cloud Vision isteği başarısız — ${e.describeNetworkError()}",
+                e,
+            )
         }
 
         val first = response.responses.firstOrNull()

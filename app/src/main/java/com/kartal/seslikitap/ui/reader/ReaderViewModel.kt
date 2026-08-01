@@ -56,6 +56,7 @@ class ReaderViewModel @Inject constructor(
             currentPage = pages.getOrNull(safeIndex),
             isPlaying = playback.isPlaying,
             errorMessage = playback.errorMessage,
+            activeVoiceLabel = playback.activeVoiceLabel,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReaderUiState())
 
@@ -83,6 +84,9 @@ class ReaderViewModel @Inject constructor(
                     currentPageIndex.value = index
                     saveProgress(page)
                     readPageAloud(currentBook, page.cleanedText)
+                    // Okumayı hangi sağlayıcının yaptığını göster: bulut sesi seçtiğini
+                    // sanıp cihaz sesini dinlemek kolayca gözden kaçıyor.
+                    playbackState.update { it.copy(activeVoiceLabel = readPageAloud.lastUsedProviderName) }
                     index++
                 }
             } catch (e: Exception) {
@@ -132,6 +136,7 @@ class ReaderViewModel @Inject constructor(
     private data class PlaybackState(
         val isPlaying: Boolean = false,
         val errorMessage: String? = null,
+        val activeVoiceLabel: String? = null,
     )
 }
 
@@ -142,4 +147,6 @@ data class ReaderUiState(
     val currentPage: Page? = null,
     val isPlaying: Boolean = false,
     val errorMessage: String? = null,
+    /** Okumayı gerçekten yapan sağlayıcının adı. */
+    val activeVoiceLabel: String? = null,
 )

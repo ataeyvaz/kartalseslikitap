@@ -1,5 +1,6 @@
 package com.kartal.seslikitap.data.provider.elevenlabs
 
+import com.kartal.seslikitap.data.remote.describeNetworkError
 import com.kartal.seslikitap.data.remote.elevenlabs.ElevenLabsApi
 import com.kartal.seslikitap.data.remote.elevenlabs.ElevenLabsSynthesizeRequest
 import com.kartal.seslikitap.di.IoDispatcher
@@ -67,7 +68,12 @@ class ElevenLabsTtsProvider @Inject constructor(
                 api.synthesize(apiKey, selectedVoice.id, OUTPUT_FORMAT, request)
                     .use { it.bytes() }
             } catch (e: Exception) {
-                throw TtsProviderException(id, "ElevenLabs isteği başarısız: ${e.message}", e)
+                throw TtsProviderException(
+                    id,
+                    "ElevenLabs seslendirme isteği başarısız (ses: ${selectedVoice.id}) — " +
+                        e.describeNetworkError(),
+                    e,
+                )
             }
 
             if (bytes.isEmpty()) throw TtsProviderException(id, "ElevenLabs boş ses döndürdü")

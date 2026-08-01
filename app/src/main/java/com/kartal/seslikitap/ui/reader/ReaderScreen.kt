@@ -61,7 +61,10 @@ fun ReaderScreen(
             }
 
             Text(
-                text = "Sayfa ${state.currentIndex + 1} / ${state.pages.size}",
+                text = buildString {
+                    append("Sayfa ${state.currentIndex + 1} / ${state.pages.size}")
+                    state.activeVoiceLabel?.let { append(" · Okuyan: $it") }
+                },
                 style = MaterialTheme.typography.labelLarge,
             )
 

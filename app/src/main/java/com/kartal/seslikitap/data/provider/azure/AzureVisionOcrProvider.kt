@@ -2,6 +2,7 @@ package com.kartal.seslikitap.data.provider.azure
 
 import android.graphics.Bitmap
 import com.kartal.seslikitap.data.remote.azure.AzureVisionApi
+import com.kartal.seslikitap.data.remote.describeNetworkError
 import com.kartal.seslikitap.di.IoDispatcher
 import com.kartal.seslikitap.domain.model.OcrResult
 import com.kartal.seslikitap.domain.provider.OcrProvider
@@ -61,7 +62,11 @@ class AzureVisionOcrProvider @Inject constructor(
         val response = try {
             api.analyzeRead(AzureReadMapper.buildAnalyzeUrl(endpoint), apiKey, body)
         } catch (e: Exception) {
-            throw OcrProviderException(id, "Azure Vision isteği başarısız: ${e.message}", e)
+            throw OcrProviderException(
+                id,
+                "Azure Vision isteği başarısız — ${e.describeNetworkError()}",
+                e,
+            )
         }
 
         AzureReadMapper.toOcrResult(response, id)

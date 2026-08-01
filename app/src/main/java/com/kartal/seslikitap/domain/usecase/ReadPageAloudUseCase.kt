@@ -22,10 +22,21 @@ class ReadPageAloudUseCase @Inject constructor(
     @Volatile
     private var lastUsedProvider: TtsProvider? = null
 
+    /**
+     * Okuyan sağlayıcının adı; kullanıcı hangi sesi duyduğunu bilebilsin diye UI'a taşınır.
+     * Ayarlarda bulut sesi seçili sanıp cihaz sesini dinlemek en kolay düşülen tuzak.
+     */
+    @Volatile
+    var lastUsedProviderName: String? = null
+        private set
+
     suspend operator fun invoke(book: Book, text: String) {
         if (text.isBlank()) return
 
-        val provider = ttsRegistry.active().also { lastUsedProvider = it }
+        val provider = ttsRegistry.active().also {
+            lastUsedProvider = it
+            lastUsedProviderName = it.name
+        }
         val voiceConfig = buildVoiceConfig(book)
         val speechText = prepareSpeechText(text, provider)
 
