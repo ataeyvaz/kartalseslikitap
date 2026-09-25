@@ -101,3 +101,21 @@ Format:
   sınama için `assembleDebugAndroidTest` + `adb install` + `adb shell am instrument` daha güvenli
 - Sonraki adım: kullanıcı kayıt sayısını artıracak; beklerken `length_scale`/`noise_scale`/`noise_w`
   denemeleriyle çıkış ayarı iyileştirilebilir
+
+## [2026-09-25] — Çıkış ayarı "sakin" seçildi; "ğ" cümleleri kayıt listesine eklendi
+- **Ayar denemesi:** aynı paragraf dört ayarla üretilip kullanıcıya dinletildi (A mevcut 1.25/0.667/0.8,
+  B normal hız, C "sakin" 1.1/0.5/0.6, D "canlı" 1.1/0.8/1.0). Kullanıcı **C**'yi seçti
+  - `ata.onnx.json` → `length_scale 1.1`, `noise_scale 0.5`, `noise_w 0.6`; üç kopya aynı tutuldu: bu depo,
+    Sözcük deposu (`sozcuk/sesler/`), Sözcük'ün kurulu kopyası (`%LOCALAPPDATA%\Sözcük\sesler\`)
+  - Sözcük `araclar/ses_egitimi/egitim.py` yeni modelde bu değerleri yazacak şekilde güncellendi (eskiden 1.25
+    yazıyordu, bir sonraki eğitim ayarı geri alırdı); `BENIOKU.md` ve `CLAUDE.md` de
+  - Bulgu: `noise_w` bu modelde süreleri hiç değiştirmiyor (0 ile 1 arası aynı süre, aynı boşluklar)
+- **Kullanıcı gözlemleri:**
+  - "topladı" gibi duyulan yer metinde "yamaçtaki otlağa" (ses birimi `ɔtɫˈaː` doğru) → model "ğ"li
+    kelimeleri bulanık söylüyor; eğitim verisinde az
+  - Kelime arasında virgül varmış gibi bekleme: ölçümde uzun boşlukların neredeyse hepsi virgülde (0,5–0,9 sn),
+    noktalamasız yalnız bir tane (~0,25 sn). **Kullanıcı kararı: virgül duraklaması kısaltılmayacak**
+- **Kayıt listesi:** `BabaKartalVoice/docs/prompts_tr.txt` sonuna "Yumuşak g (ğ)" bölümü, 20 cümle (ünlü arası,
+  ünsüz önü, sözcük sonu ğ; -ğa/-ğe yönelme ekleri). Kimlikler metin özetinden geldiği için eski kayıtlar
+  etkilenmez. Telefondaki kayıt uygulamasına girmesi için `scripts/build_apk.ps1` ile APK yeniden derlenmeli
+- Test: yalnız json ve yorum değişti; `assembleDebug`

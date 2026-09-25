@@ -29,7 +29,8 @@ Kullanıcının kendi sesiyle eğitilmiş Piper (VITS) modeli, Sözcük masaüst
 
 - **Model:** `app/src/main/assets/sesler/ata.onnx` (+ `ata.onnx.json`, ~63 MB). Kaynağı Sözcük deposu:
   `Desktop\sozcuk\sozcuk\sesler\`. Eğitim: Kaggle, `Desktop\sozcuk\araclar\ses_egitimi\` (14 saatlik sürüm,
-  2026-09-24). Varsayılan hız json'da `inference.length_scale = 1.25` (kullanıcı tercihi: %25 yavaş).
+  2026-09-24). Çıkış ayarı json'da `inference`: `length_scale 1.1`, `noise_scale 0.5`, `noise_w 0.6` (kullanıcı tercihi,
+  2026-09-25: dört ayar dinlendi, "C/sakin" seçildi; `noise_w` bu modelde süreyi etkilemiyor). Sözcük'le aynı tutulur.
 - **Telaffuz:** model ses birimi (IPA) girdisi bekler; eğitimde Sözcük'ün `sozcuk/pronunciation.py`'si kullanıldı.
   Kotlin karşılığı (`TurkishPhonemizer`) Python'la **harfi harfine aynı** çıktı vermek zorunda — yoksa model yanlış
   okur (BabaKartalVoice'taki ilk Piper denemesi fonem uyuşmazlığı yüzünden bozulmuştu). Doğrulama: Python'dan

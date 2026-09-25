@@ -52,7 +52,7 @@ class PiperVoice @Inject constructor(
 
     /**
      * Metni sese çevirir: 16 bit mono örnekler. [speed] 1.0 = sesin varsayılan hızı (json'daki `length_scale`,
-     * "Ata" için %25 yavaş); 1.2 daha hızlı, 0.8 daha yavaş.
+     * "Ata" için %10 yavaş); 1.2 daha hızlı, 0.8 daha yavaş.
      */
     suspend fun synthesize(text: String, speed: Float = 1.0f): ShortArray {
         val model = load()
