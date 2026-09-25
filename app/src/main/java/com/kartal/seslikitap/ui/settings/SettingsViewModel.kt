@@ -248,9 +248,26 @@ data class SettingsUiState(
     val drafts: Map<DraftKey, String> = emptyMap(),
     val message: String? = null,
 ) {
+    /**
+     * Gerçekte kullanılacak OCR/TTS sağlayıcısının kimliği. Kayıtlı ayar artık listede olmayan (kapatılmış)
+     * bir sağlayıcıyı gösterebilir; kayıt, o durumda cihaz üstü varsayılana düşer — ekran da onu seçili gösterir.
+     */
+    val effectiveOcrProviderId: ProviderId?
+        get() = effectiveId(ocrProviders, settings.defaultOcrProviderId)
+
+    val effectiveTtsProviderId: ProviderId?
+        get() = effectiveId(ttsProviders, settings.defaultTtsProviderId)
+
     /** Ayarlarda seçili TTS sağlayıcısı. */
     val activeTtsProvider: ProviderRow?
-        get() = ttsProviders.firstOrNull { it.id == settings.defaultTtsProviderId }
+        get() = ttsProviders.firstOrNull { it.id == effectiveTtsProviderId }
+
+    /** Bulut OCR sağlayıcısı kayıtlı değilse "otomatik bulut geçişi" ayarının anlamı yoktur. */
+    val hasCloudOcr: Boolean
+        get() = ocrProviders.any { !it.isOnDevice }
+
+    val hasCloudTts: Boolean
+        get() = ttsProviders.any { !it.isOnDevice }
 
     val pinnedVoiceForActiveTts: PinnedVoice?
         get() = activeTtsProvider?.let { pinnedVoices[it.id] }
@@ -270,6 +287,10 @@ data class SettingsUiState(
 
     fun hasAnyStoredField(provider: ProviderRow): Boolean =
         storedFields[provider.id].orEmpty().isNotEmpty()
+
+    private fun effectiveId(providers: List<ProviderRow>, selected: ProviderId): ProviderId? =
+        providers.firstOrNull { it.id == selected }?.id
+            ?: providers.firstOrNull { it.isOnDevice && !it.requiresApiKey }?.id
 }
 
 data class ProviderRow(

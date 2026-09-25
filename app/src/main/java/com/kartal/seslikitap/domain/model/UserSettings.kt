@@ -13,7 +13,7 @@ import com.kartal.seslikitap.domain.provider.ProviderIds
  */
 data class UserSettings(
     val defaultOcrProviderId: ProviderId = ProviderIds.MlKit,
-    val defaultTtsProviderId: ProviderId = ProviderIds.AndroidTts,
+    val defaultTtsProviderId: ProviderId = ProviderIds.PiperAta,
     /** OCR sonrası metin düzeltme; varsayılan olarak kapalı (metne dokunulmaz). */
     val textCorrectionProviderId: ProviderId = ProviderIds.NoCorrection,
     val defaultNarratorGender: NarratorGender = NarratorGender.NEUTRAL,

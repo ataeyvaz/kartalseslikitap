@@ -28,4 +28,7 @@ object ProviderIds {
     val GoogleCloudTts = ProviderId("google_cloud_tts")
     val ElevenLabs = ProviderId("elevenlabs")
     val AzureNeuralTts = ProviderId("azure_neural_tts")
+
+    /** Ata'nın kendi sesiyle eğitilmiş Piper modeli (cihaz üzerinde). */
+    val PiperAta = ProviderId("piper_ata")
 }

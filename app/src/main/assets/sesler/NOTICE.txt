@@ -1,0 +1,7 @@
+Ata'nın sesi (ata.onnx, ata.onnx.json)
+
+Ata'nın kendi kayıtlarıyla eğitilmiş Piper (VITS) ses modeli. Sözcük masaüstü uygulamasındaki sesin aynısı
+(https://github.com/ataeyvaz/sozcuk, sozcuk/sesler/).
+
+Temel model: Piper tr_TR "dfki" medium (rhasspy/piper-checkpoints), lisansı CC BY-NC-SA 4.0.
+Bu yüzden bu ses de CC BY-NC-SA 4.0 koşullarındadır: ticari kullanıma kapalıdır.

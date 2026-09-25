@@ -79,7 +79,7 @@ fun SettingsScreen(
                 state.ocrProviders.forEach { provider ->
                     ProviderOption(
                         provider = provider,
-                        selected = state.settings.defaultOcrProviderId == provider.id,
+                        selected = state.effectiveOcrProviderId == provider.id,
                         isConfigured = state.isConfigured(provider),
                         onSelect = { viewModel.selectOcrProvider(provider.id) },
                     )
@@ -90,16 +90,18 @@ fun SettingsScreen(
                 state.ttsProviders.forEach { provider ->
                     ProviderOption(
                         provider = provider,
-                        selected = state.settings.defaultTtsProviderId == provider.id,
+                        selected = state.effectiveTtsProviderId == provider.id,
                         isConfigured = state.isConfigured(provider),
                         onSelect = { viewModel.selectTtsProvider(provider.id) },
                     )
                 }
-                Text(
-                    "Bulut sesleri uzun metinlerde tonlama ve duraklamalarda belirgin biçimde " +
-                        "daha doğaldır; cihaz sesi ücretsiz ve internetsiz çalışır.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                if (state.hasCloudTts) {
+                    Text(
+                        "Bulut sesleri uzun metinlerde tonlama ve duraklamalarda belirgin biçimde " +
+                            "daha doğaldır; cihaz sesi ücretsiz ve internetsiz çalışır.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
 
                 // Anahtar girildikten sonra "gerçekten çalışıyor mu" sorusunun tek cevabı.
                 OutlinedButton(
@@ -202,44 +204,49 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSection("Sağlayıcı hesapları") {
-                Text(
-                    "Girdiğin bilgiler cihazında Android Keystore ile şifrelenir, hiçbir zaman " +
-                        "bizim sunucumuza gönderilmez. İstekler doğrudan sağlayıcıya gider ve " +
-                        "faturalandırma senin hesabında olur.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                state.credentialProviders.forEach { provider ->
-                    CredentialGroup(
-                        provider = provider,
-                        isConfigured = state.isConfigured(provider),
-                        hasAnyStoredField = state.hasAnyStoredField(provider),
-                        draftFor = { fieldId -> state.drafts[DraftKey(provider.id, fieldId)].orEmpty() },
-                        isFieldStored = { fieldId -> fieldId in state.storedFields[provider.id].orEmpty() },
-                        onDraftChange = { fieldId, value ->
-                            viewModel.onDraftChange(provider.id, fieldId, value)
-                        },
-                        onSave = { viewModel.saveCredentials(provider) },
-                        onClear = { viewModel.clearCredentials(provider.id) },
+            // Kimlik bilgisi isteyen sağlayıcı kalmadıysa (bulut sağlayıcıları kapalı) bölüm gösterilmez.
+            if (state.credentialProviders.isNotEmpty()) {
+                SettingsSection("Sağlayıcı hesapları") {
+                    Text(
+                        "Girdiğin bilgiler cihazında Android Keystore ile şifrelenir, hiçbir zaman " +
+                            "bizim sunucumuza gönderilmez. İstekler doğrudan sağlayıcıya gider ve " +
+                            "faturalandırma senin hesabında olur.",
+                        style = MaterialTheme.typography.bodySmall,
                     )
+                    state.credentialProviders.forEach { provider ->
+                        CredentialGroup(
+                            provider = provider,
+                            isConfigured = state.isConfigured(provider),
+                            hasAnyStoredField = state.hasAnyStoredField(provider),
+                            draftFor = { fieldId -> state.drafts[DraftKey(provider.id, fieldId)].orEmpty() },
+                            isFieldStored = { fieldId -> fieldId in state.storedFields[provider.id].orEmpty() },
+                            onDraftChange = { fieldId, value ->
+                                viewModel.onDraftChange(provider.id, fieldId, value)
+                            },
+                            onSave = { viewModel.saveCredentials(provider) },
+                            onClear = { viewModel.clearCredentials(provider.id) },
+                        )
+                    }
                 }
             }
 
-            SettingsSection("Otomatik bulut geçişi") {
-                LabeledSwitch(
-                    title = "Güven düşükse buluta geç",
-                    description = "Cihaz üstü tanıma zayıf kaldığında sayfa bulut sağlayıcıya " +
-                        "gönderilir. Bu ücretli bir çağrıdır.",
-                    checked = state.settings.autoFallbackToCloud,
-                    onCheckedChange = viewModel::setAutoFallback,
-                )
-                if (state.settings.autoFallbackToCloud) {
-                    SliderRow(
-                        label = "Eşik: %${(state.settings.cloudFallbackConfidenceThreshold * 100).roundToInt()}",
-                        value = state.settings.cloudFallbackConfidenceThreshold,
-                        range = 0.3f..0.95f,
-                        onValueChange = viewModel::setFallbackThreshold,
+            if (state.hasCloudOcr) {
+                SettingsSection("Otomatik bulut geçişi") {
+                    LabeledSwitch(
+                        title = "Güven düşükse buluta geç",
+                        description = "Cihaz üstü tanıma zayıf kaldığında sayfa bulut sağlayıcıya " +
+                            "gönderilir. Bu ücretli bir çağrıdır.",
+                        checked = state.settings.autoFallbackToCloud,
+                        onCheckedChange = viewModel::setAutoFallback,
                     )
+                    if (state.settings.autoFallbackToCloud) {
+                        SliderRow(
+                            label = "Eşik: %${(state.settings.cloudFallbackConfidenceThreshold * 100).roundToInt()}",
+                            value = state.settings.cloudFallbackConfidenceThreshold,
+                            range = 0.3f..0.95f,
+                            onValueChange = viewModel::setFallbackThreshold,
+                        )
+                    }
                 }
             }
 

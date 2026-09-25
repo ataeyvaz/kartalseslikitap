@@ -60,9 +60,16 @@ android {
 
     sourceSets {
         getByName("androidTest") {
-            // MigrationTestHelper eski şemaları varlık olarak okur.
-            assets.srcDirs(files("$projectDir/schemas"))
+            // MigrationTestHelper eski şemaları varlık olarak okur. Telaffuz altın dosyası (piper/altin.jsonl) da
+            // cihazda karşılaştırma için aynı yoldan gelir: telefon düzenli ifadeleri ICU ile çalıştırır.
+            assets.srcDirs(files("$projectDir/schemas", "$projectDir/src/test/resources"))
         }
+    }
+
+    androidResources {
+        // Ata'nın ses modeli: PiperVoice onu openFd ile ölçüp dosyaya kopyalar (sıkıştırılmamış olmalı;
+        // zaten neredeyse hiç sıkışmaz).
+        noCompress += "onnx"
     }
 
     packaging {
@@ -124,6 +131,9 @@ dependencies {
 
     // Bulut sağlayıcıların ürettiği ses akışını oynatmak için.
     implementation(libs.androidx.media3.exoplayer)
+
+    // Ata'nın sesi (Piper/VITS modeli) cihazda çalıştırılır
+    implementation(libs.onnxruntime.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

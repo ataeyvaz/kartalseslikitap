@@ -40,8 +40,12 @@ class TtsProviderRegistry @Inject constructor(
 
     fun byId(id: ProviderId): TtsProvider? = providers.firstOrNull { it.id == id }
 
+    /**
+     * Birden çok cihaz üstü sağlayıcı var (Android TTS, Ata'nın sesi); küme sırası belirsiz olduğu için
+     * yedek her zaman Android TTS'tir — her cihazda bulunan motor.
+     */
     fun defaultOnDevice(): TtsProvider =
-        providers.firstOrNull { it.isOnDevice && !it.requiresApiKey }
+        (providers.firstOrNull { it.id == ProviderIds.AndroidTts } ?: providers.firstOrNull { it.isOnDevice && !it.requiresApiKey })
             ?: throw ProviderUnavailableException(ProviderIds.AndroidTts, "Kayıtlı on-device TTS sağlayıcısı yok")
 
     suspend fun active(): TtsProvider {
